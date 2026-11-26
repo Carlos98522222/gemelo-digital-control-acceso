@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gemelo Digital · Control de Acceso</title>
+<!-- Diseño basado en el export de Google Stitch (../../design/). Funciona sin internet:
+     si las fuentes no cargan, se usan las del sistema. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --surface:#0f1418; --lowest:#0a0f13; --low:#171c20; --cont:#1b2024; --high:#262b2f; --highest:#30353a;
+  --ink:#dfe3e9; --ink2:#bcc9cd; --mut:#869397; --line:#3d494c;
+  --primary:#4cd7f6; --primary-c:#06b6d4; --on-primary:#003640;
+  --ok:#4edea3; --ok-c:#00a572; --unk:#d0bcff; --unk-c:#5516be;
+  --bad:#ffb4ab; --bad-c:#93000a; --bad-strong:#ef4444; --warn:#f5b94a;
+  --r:12px; --sans:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,"Cascadia Mono",monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--surface);color:var(--ink);font:14px/1.45 var(--sans);-webkit-font-smoothing:antialiased}
+button,select,input{font:inherit;color:inherit}
+.mono{font-family:var(--mono)}
+.badge{font:700 10.5px/1.3 var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:5px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
+.b-ok{background:rgba(78,222,163,.12);color:var(--ok);border:1px solid rgba(78,222,163,.35)}
+.b-bad{background:rgba(147,0,10,.55);color:#ffdad6;border:1px solid rgba(255,180,171,.35)}
+.b-warn{background:rgba(245,185,74,.12);color:var(--warn);border:1px solid rgba(245,185,74,.4)}
+.b-unk{background:rgba(208,188,255,.12);color:var(--unk);border:1px solid rgba(208,188,255,.4)}
+.b-pri{background:rgba(76,215,246,.12);color:var(--primary);border:1px solid rgba(76,215,246,.35)}
+.b-mut{background:var(--highest);color:var(--ink2);border:1px solid transparent}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
+.pulse{animation:pulse 1.6s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.lbl{font:700 10.5px/1.3 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* ---------- Layout ---------- */
+aside{position:fixed;inset:0 auto 0 0;width:264px;background:var(--low);border-right:1px solid rgba(61,73,76,.5);display:flex;flex-direction:column;justify-content:space-between;z-index:30}
+.brand{display:flex;gap:12px;align-items:center;padding:18px 16px;border-bottom:1px solid rgba(61,73,76,.5)}
+.brand .logo{width:40px;height:40px;border-radius:10px;background:var(--high);border:1px solid var(--line);display:grid;place-items:center;color:var(--primary);box-shadow:0 0 14px rgba(76,215,246,.18)}
+.brand b{display:block;font-size:16px;letter-spacing:.06em}
+.brand small{font:700 10.5px var(--mono);letter-spacing:.12em;color:var(--primary)}
+nav{display:flex;flex-direction:column;gap:4px;padding:10px}
+nav a{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-radius:9px;color:var(--ink2);text-decoration:none;border-left:2px solid transparent;cursor:pointer}
+nav a span.t{display:flex;align-items:center;gap:12px}
+nav a:hover{background:var(--cont);color:var(--ink)}
+nav a.on{background:var(--high);color:var(--primary);border-left-color:var(--primary);font-weight:600}
+.side-foot{padding:12px;border-top:1px solid rgba(61,73,76,.5);display:flex;flex-direction:column;gap:8px;background:rgba(10,15,19,.5)}
+.side-foot .row{display:flex;justify-content:space-between;align-items:center;background:var(--cont);border-radius:8px;padding:8px 10px}
+.wrap{margin-left:264px;min-height:100vh}
+header{position:sticky;top:0;z-index:20;background:rgba(15,20,24,.88);backdrop-filter:blur(14px);border-bottom:1px solid rgba(61,73,76,.5);padding:12px 24px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.pill{display:flex;align-items:center;gap:10px;background:var(--low);border:1px solid rgba(61,73,76,.6);border-radius:9px;padding:6px 12px}
+.clock{font:700 15px var(--mono);color:var(--primary);min-width:178px}
+input[type=range]{accent-color:var(--primary);width:220px}
+.tnum{width:72px;background:var(--cont);border:1px solid var(--line);border-radius:7px;padding:4px 8px;font-family:var(--mono)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{display:inline-flex;gap:6px;align-items:center;font:700 11px var(--mono);letter-spacing:.03em;padding:6px 10px;border-radius:7px;border:1px solid rgba(61,73,76,.7);background:var(--cont);color:var(--ink2);cursor:pointer;white-space:nowrap}
+.chip:hover{color:var(--ink);border-color:var(--primary)}
+.chip.on{color:var(--primary);border-color:var(--primary);background:rgba(76,215,246,.08)}
+.chip.red{color:var(--bad);border-color:rgba(255,180,171,.45);background:rgba(147,0,10,.25)}
+main{padding:22px 24px 90px;max-width:1500px}
+.view{display:none}.view.on{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+h1{font-size:24px;letter-spacing:-.015em;margin:0}
+.sub{color:var(--mut);margin:4px 0 18px}
+.card{background:var(--low);border:1px solid rgba(61,73,76,.45);border-radius:var(--r);padding:16px}
+.card h3{margin:0 0 12px;font-size:15px;letter-spacing:.02em;display:flex;gap:8px;align-items:center;text-transform:uppercase}
+.grid{display:grid;gap:16px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--low);border:1px solid rgba(61,73,76,.45);border-radius:10px;padding:12px 14px;display:flex;gap:12px;align-items:center}
+.kpi .v{font:700 20px var(--mono);line-height:1.1}
+.kpi.bad{background:rgba(147,0,10,.28);border-color:rgba(255,180,171,.3)}
+.kpi.bad .v{color:var(--bad)}
+.empty{color:var(--mut);font-style:italic;padding:8px 0}
+.err{color:var(--bad)}
+
+/* ---------- Plano ---------- */
+.zonas{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;background:var(--lowest);padding:14px;border-radius:14px}
+.zona{background:var(--cont);border:1px solid rgba(61,73,76,.5);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.zona.alerta{border-color:rgba(255,180,171,.45);box-shadow:0 0 0 1px rgba(147,0,10,.4) inset}
+.zhead{display:flex;justify-content:space-between;align-items:flex-start;background:var(--low);border-radius:9px;padding:10px}
+.zhead b{font:700 18px var(--mono);display:block}
+.zhead .n{font:700 11px var(--mono);color:var(--mut)}
+.per{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--low);border-radius:8px;padding:8px 10px}
+.per b{display:block;font-size:14px;text-transform:capitalize}
+.per small{color:var(--mut);font:500 11px var(--mono)}
+.per.rev{background:rgba(147,0,10,.22);border:1px solid rgba(255,180,171,.3)}
+.door{background:var(--lowest);border:1px solid rgba(61,73,76,.6);border-radius:10px;padding:10px}
+.door .top{display:flex;justify-content:space-between;gap:6px;align-items:flex-start;margin-bottom:8px}
+.door .top b{font:700 12px var(--mono);letter-spacing:.04em;text-transform:uppercase;color:var(--primary)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font:500 11.5px var(--mono)}
+.kv span:nth-child(odd){color:var(--mut)}
+.door .warn{margin-top:8px;background:rgba(147,0,10,.45);color:#ffdad6;border-radius:6px;padding:6px 8px;font:700 11px var(--mono)}
+
+/* ---------- Intento ---------- */
+.tri{display:grid;grid-template-columns:minmax(260px,1fr) minmax(280px,1.1fr) minmax(300px,1.2fr);gap:16px;align-items:start}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.field select,.field input{background:var(--lowest);border:1px solid var(--line);border-radius:8px;padding:9px 10px}
+.seg{display:flex;background:var(--lowest);border:1px solid var(--line);border-radius:9px;padding:3px;gap:3px}
+.seg button{flex:1;border:0;background:transparent;padding:8px;border-radius:7px;cursor:pointer;color:var(--ink2)}
+.seg button.on{background:var(--primary-c);color:#00242c;font-weight:700}
+.btn{display:inline-flex;align-items:center;gap:8px;border:0;border-radius:9px;padding:10px 14px;cursor:pointer;font-weight:600}
+.btn.pri{background:var(--primary);color:var(--on-primary)}
+.btn.sec{background:var(--high);color:var(--ink);border:1px solid var(--line)}
+.btn.red{background:#ffb4ab;color:#690005}
+.verdict{border-radius:14px;padding:22px 18px;text-align:center;min-height:330px;display:flex;flex-direction:column;justify-content:center;gap:12px;border:1px solid rgba(61,73,76,.5)}
+.verdict .ico{width:76px;height:76px;margin:0 auto;border-radius:18px;display:grid;place-items:center;background:var(--lowest)}
+.verdict .ico svg{width:40px;height:40px}
+.verdict .big{font-size:34px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
+.v-abrir{background:linear-gradient(180deg,rgba(0,165,114,.35),rgba(23,28,32,1) 75%)}
+.v-abrir .big,.v-abrir .ico{color:var(--ok)}
+.v-negar{background:linear-gradient(180deg,rgba(147,0,10,.85),rgba(23,28,32,1) 80%)}
+.v-negar .big,.v-negar .ico{color:var(--bad)}
+.v-alerta{background:linear-gradient(180deg,rgba(176,112,0,.55),rgba(23,28,32,1) 78%)}
+.v-alerta .big,.v-alerta .ico{color:var(--warn)}
+.who{background:rgba(10,15,19,.6);border-radius:9px;padding:10px;font-family:var(--mono);font-size:12px;text-align:left}
+.cond{display:flex;gap:10px;background:var(--cont);border-radius:10px;padding:10px;margin-bottom:8px;border-left:3px solid var(--line)}
+.cond .num{font:700 12px var(--mono);color:var(--mut);min-width:26px}
+.cond b{display:block;margin-bottom:3px}
+.cond ul{margin:0;padding-left:16px;color:var(--ink2);font-size:12.5px}
+.cond.si{border-left-color:var(--ok)}.cond.no{border-left-color:var(--bad-strong)}.cond.no_se_sabe{border-left-color:var(--unk)}
+.cond .st{margin-left:auto;align-self:flex-start}
+.clash{background:rgba(176,112,0,.12);border:1px solid rgba(245,185,74,.35);border-radius:10px;padding:12px;margin-bottom:8px}
+.clash .vs{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;font:600 12.5px var(--mono)}
+.clash .vs i{color:var(--warn);font-style:normal}
+.clash .res{margin-top:8px;font-size:13px;color:var(--ink2)}
+.note{font-size:12.5px;color:var(--ink2);background:var(--cont);border-radius:8px;padding:8px 10px;margin-top:6px}
+
+/* ---------- Alertas ---------- */
+.feed{display:flex;flex-direction:column;gap:10px}
+.al{display:grid;grid-template-columns:4px 1fr;border-radius:11px;overflow:hidden;background:var(--low);border:1px solid rgba(61,73,76,.45)}
+.al .bar{background:var(--line)}
+.al.critica .bar{background:var(--bad-strong)}.al.advertencia .bar{background:var(--warn)}
+.al.registro .bar{background:var(--mut)}.al.indeterminado .bar{background:var(--unk)}
+.al .body{padding:12px 14px}
+.al .hd{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px}
+.al .hd b{font-size:14.5px}
+.ev{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.ev span{font:500 11px var(--mono);background:var(--lowest);border:1px solid rgba(61,73,76,.6);border-radius:6px;padding:3px 7px;color:var(--ink2)}
+.sum{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+
+/* ---------- Emergencia ---------- */
+.banner{border-radius:14px;padding:18px;background:linear-gradient(90deg,rgba(147,0,10,.95),rgba(147,0,10,.55));border:1px solid rgba(255,180,171,.4);display:flex;gap:16px;align-items:center;margin-bottom:16px}
+.banner .ico{width:54px;height:54px;border-radius:14px;background:#ffb4ab;color:#690005;display:grid;place-items:center}
+.banner b{font-size:20px;display:block}
+table{width:100%;border-collapse:collapse}
+th{font:700 10.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mut);text-align:left;padding:8px;border-bottom:1px solid var(--line)}
+td{padding:10px 8px;border-bottom:1px solid rgba(61,73,76,.4);vertical-align:middle}
+td.n{text-transform:capitalize;font-weight:600}
+.route{font:600 12px var(--mono);color:var(--ok)}
+.doors{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.dcell{background:var(--cont);border-radius:10px;padding:10px;border-top:3px solid var(--line)}
+.dcell.si{border-top-color:var(--ok)}.dcell.no{border-top-color:var(--bad-strong)}.dcell.no_se_sabe{border-top-color:var(--unk)}
+.dcell b{font:700 12px var(--mono);text-transform:uppercase;display:block;margin-bottom:4px}
+.dcell small{color:var(--ink2)}
+.avisos li{margin:6px 0;color:var(--ink2)}
+
+/* ---------- Tarjeta ---------- */
+.owner{display:flex;gap:14px;align-items:center}
+.avatar{width:54px;height:54px;border-radius:14px;background:var(--high);display:grid;place-items:center;font:700 22px var(--mono);color:var(--primary);text-transform:uppercase}
+.hist{display:flex;gap:0;margin-top:14px}
+.hist div{flex:1;padding:8px;border-top:3px solid var(--line);font:600 11.5px var(--mono)}
+.hist .activa{border-color:var(--ok)}.hist .reportada{border-color:var(--warn)}.hist .revocada{border-color:var(--bad-strong)}
+.uses{position:relative;padding-left:18px}
+.uses:before{content:"";position:absolute;left:5px;top:6px;bottom:6px;width:2px;background:var(--line)}
+.use{position:relative;margin-bottom:10px;background:var(--cont);border-radius:9px;padding:9px 11px}
+.use:before{content:"";position:absolute;left:-17px;top:13px;width:10px;height:10px;border-radius:50%;background:var(--mut)}
+.use.la_puerta_no_lo_sabia:before{background:var(--bad-strong)}
+.use.antes_del_reporte_probable_duenio:before{background:var(--ok)}
+.use.la_puerta_ya_lo_sabia:before{background:var(--warn)}
+.cmp td.diff{color:var(--warn);font-weight:700}
+
+/* ---------- Móvil ---------- */
+@media (max-width:1180px){.tri{grid-template-columns:1fr 1fr}.tri>:last-child{grid-column:1/-1}.zonas{grid-template-columns:1fr 1fr}}
+@media (max-width:860px){
+  aside{inset:auto 0 0 0;width:auto;height:64px;flex-direction:row;border-right:0;border-top:1px solid var(--line)}
+  .brand,.side-foot,aside .lbl{display:none}
+  aside>div:first-child{display:flex;flex:1}
+  .clock{min-width:0;font-size:13px}
+  nav{flex-direction:row;flex:1;padding:6px;gap:2px}
+  nav a{flex:1;flex-direction:column;justify-content:center;padding:6px 2px;border-left:0;border-top:2px solid transparent;font-size:10.5px;text-align:center}
+  nav a span.t{flex-direction:column;gap:2px}
+  nav a .badge{display:none}
+  nav a.on{border-top-color:var(--primary)}
+  .wrap{margin-left:0}
+  header{padding:10px 12px}
+  input[type=range]{width:120px}
+  main{padding:14px 12px 90px}
+  .zonas,.tri,.sum{grid-template-columns:1fr}
+  .verdict{min-height:0}
+}
+</style>
+</head>
+<body>
+
+<!-- Íconos SVG (sin dependencias externas) -->
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 4v16M3 12h18"/></symbol>
+  <symbol id="i-card" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h4M7 14h7M16 10.5a2 2 0 110 3"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></symbol>
+  <symbol id="i-fire" viewBox="0 0 24 24"><path d="M12 3c1 4 6 6 6 11a6 6 0 01-12 0c0-3 2-4 2-7 2 1 3 3 3 5 1-2 1-6 1-9z"/></symbol>
+  <symbol id="i-finger" viewBox="0 0 24 24"><path d="M8 20c-1-2-2-4-2-8a6 6 0 0112 0v2M12 12v4c0 2 1 4 2 5M9 12a3 3 0 016 0v2c0 3 1 5 2 6"/></symbol>
+  <symbol id="i-ok" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></symbol>
+  <symbol id="i-no" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9.5 9.5l5 5M14.5 9.5l-5 5"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0112 0v5l2 2H4zM10 20a2 2 0 004 0"/></symbol>
+  <symbol id="i-scale" viewBox="0 0 24 24"><path d="M12 4v16M5 20h14M5 8l-3 6h6zM19 8l-3 6h6zM5 8h14"/></symbol>
+  <symbol id="i-door" viewBox="0 0 24 24"><path d="M5 21V4h11v17M3 21h18M13 12h.5"/></symbol>
+  <symbol id="i-server" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="7" rx="1.5"/><rect x="4" y="13" width="16" height="7" rx="1.5"/><path d="M8 7.5h.5M8 16.5h.5"/></symbol>
+  <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6M16 5a3 3 0 010 6M18 14c2 .7 3 3 3 6"/></symbol>
+  <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M8 18h6a4 4 0 000-8h-4a4 4 0 010-8h6"/></symbol>
+</svg>
+
+<aside>
+  <div>
+    <div class="brand">
+      <div class="logo"><svg class="i" style="width:24px;height:24px"><use href="#i-shield"/></svg></div>
+      <div><b>GEMELO DIGITAL</b><small>TIJUANA · CONTROL DE ACCESO</small></div>
+    </div>
+    <div class="lbl" style="padding:14px 18px 4px">Navegación operativa</div>
+    <nav id="nav">
+      <a data-v="plano" class="on"><span class="t"><svg class="i"><use href="#i-map"/></svg>Plano de la Planta</span><span class="badge b-mut">2D</span></a>
+      <a data-v="intento"><span class="t"><svg class="i"><use href="#i-card"/></svg>Probar Intento</span><span class="badge b-ok">DECIDE</span></a>
+      <a data-v="alertas"><span class="t"><svg class="i"><use href="#i-warn"/></svg>Alertas</span><span class="badge b-bad" id="navCrit">0</span></a>
+      <a data-v="emergencia"><span class="t"><svg class="i"><use href="#i-fire"/></svg>Emergencia</span><span class="badge b-mut" id="navFire">NOM-002</span></a>
+      <a data-v="tarjeta"><span class="t"><svg class="i"><use href="#i-finger"/></svg>Análisis de Tarjeta</span><span class="badge b-mut">FORENSE</span></a>
+    </nav>
+  </div>
+  <div class="side-foot">
+    <div class="row"><span class="lbl">Servidor central</span><span id="sfSrv" class="badge b-ok">EN LÍNEA</span></div>
+    <div class="row"><span class="lbl">Alarma de incendio</span><span id="sfFire" class="badge b-ok">APAGADA</span></div>
+    <div class="lbl" style="text-align:center;padding-top:4px">Reglas: SWI-Prolog · /api</div>
+  </div>
+</aside>
+
+<div class="wrap">
+<header>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+    <div class="pill mono" style="font-size:12px"><svg class="i" style="color:var(--primary)"><use href="#i-door"/></svg>Planta Tijuana: <b style="color:var(--primary)">5 puertas</b> · <b style="color:var(--ok)">8 personas</b></div>
+    <div class="pill"><span class="clock" id="clock">—</span><input type="range" id="t" min="0" max="900"><input type="number" class="tnum" id="tn" min="0" max="1800"></div>
+  </div>
+  <div class="chips" id="escenarios">
+    <button class="chip red" data-t="611" data-go="tarjeta">⚠ Tarjeta robada 10:11</button>
+    <button class="chip red" data-t="645" data-go="emergencia">🔥 Incendio 10:45</button>
+    <button class="chip" data-t="705" data-go="intento" data-pre="rosa">Rosa vuelve 11:45</button>
+    <button class="chip" data-t="720" data-go="plano">Ahora 12:00</button>
+    <button class="chip" data-t="780" data-go="intento" data-pre="ivan">Iván temprano 13:00</button>
+  </div>
+</header>
+
+<main>
+  <!-- 1. PLANO -->
+  <section class="view on" id="v-plano">
+    <h1>Plano de la Planta</h1>
+    <p class="sub">Estado de cada puerta y quién está en cada zona, según lo que la bitácora sabe en este minuto.</p>
+    <div class="kpis" id="kpis"></div>
+    <div class="zonas" id="zonas"><p class="empty">Cargando…</p></div>
+  </section>
+
+  <!-- 2. INTENTO -->
+  <section class="view" id="v-intento">
+    <h1>Motor de Decisión</h1>
+    <p class="sub">El gemelo decide si una tarjeta abre una puerta y explica cada condición con tres valores: sí, no, no se sabe.</p>
+    <div class="tri">
+      <div class="card">
+        <h3><svg class="i"><use href="#i-card"/></svg>Vector de entrada</h3>
+        <div class="field"><span class="lbl">Sujeto y credencial</span><select id="fTarjeta"></select></div>
+        <div class="field"><span class="lbl">Puerta</span><select id="fPuerta"></select></div>
+        <div class="field"><span class="lbl">Sentido</span><div class="seg" id="fLector"></div></div>
+        <div class="field"><span class="lbl">Minuto del intento</span><input type="number" id="fT" class="mono"></div>
+        <div class="field"><span class="lbl">Horizonte de conocimiento</span>
+          <div class="seg" id="fModo">
+            <button data-m="tiempo_real" class="on">En ese instante</button>
+            <button data-m="auditoria">Todo lo recibido</button>
+          </div>
+        </div>
+        <button class="btn pri" id="bDecide" style="width:100%;justify-content:center">Decidir</button>
+      </div>
+      <div class="verdict" id="verdict"><p class="empty">Elige un intento y presiona Decidir.</p></div>
+      <div class="card">
+        <h3><svg class="i"><use href="#i-scale"/></svg>Explicabilidad</h3>
+        <div id="conds"><p class="empty">—</p></div>
+      </div>
+    </div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr));margin-top:16px">
+      <div class="card"><h3><svg class="i"><use href="#i-scale"/></svg>Reglas en choque</h3><div id="clashes"><p class="empty">—</p></div></div>
+      <div class="card"><h3><svg class="i"><use href="#i-route"/></svg>¿Qué tendría que cambiar?</h3>
+        <div id="falta"><p class="empty">Si la decisión es negar, el gemelo busca qué hecho la voltearía y lo verifica con las mismas reglas.</p></div>
+        <button class="btn sec" id="bFalta" style="margin-top:10px">Buscar cambios</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. ALERTAS -->
+  <section class="view" id="v-alertas">
+    <h1>Alertas y Situaciones</h1>
+    <p class="sub">Situaciones deducidas por el gemelo, con su evidencia. Ningún sensor dice “forzada”: se deduce de cómo coinciden lector, contacto y paso.</p>
+    <div class="sum" id="alSum"></div>
+    <div class="chips" id="alFiltro" style="margin-bottom:14px">
+      <button class="chip on" data-f="">Todas</button>
+      <button class="chip" data-f="critica">Críticas</button>
+      <button class="chip" data-f="advertencia">Advertencias</button>
+      <button class="chip" data-f="registro">Registro</button>
+      <button class="chip" data-f="indeterminado">No se sabe</button>
+    </div>
+    <div class="feed" id="feed"></div>
+  </section>
+
+  <!-- 4. EMERGENCIA -->
+  <section class="view" id="v-emergencia">
+    <h1>Modo Emergencia y Evacuación</h1>
+    <p class="sub">Por dónde sale cada persona, qué puertas quedan abiertas o cerradas sin energía y qué regla gana.</p>
+    <div id="emerg"></div>
+  </section>
+
+  <!-- 5. TARJETA -->
+  <section class="view" id="v-tarjeta">
+    <h1>Análisis Forense de Tarjeta</h1>
+    <p class="sub">Lo que sabe el servidor contra lo que sabe cada puerta, usos imposibles para una sola persona e hipótesis.</p>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))">
+      <div class="card">
+        <div class="field"><span class="lbl">Tarjeta</span><select id="aTarjeta"></select></div>
+        <div id="owner"></div>
+      </div>
+      <div class="card"><h3><svg class="i"><use href="#i-door"/></svg>Puertas que aún la aceptarían</h3><div id="expuestas"></div>
+        <h3 style="margin-top:18px"><svg class="i"><use href="#i-warn"/></svg>Usos incompatibles</h3><div id="incomp"></div></div>
+      <div class="card"><h3><svg class="i"><use href="#i-finger"/></svg>Usos de la tarjeta</h3><div class="uses" id="usos"></div></div>
+      <div class="card"><h3><svg class="i"><use href="#i-route"/></svg>Hipótesis: ¿y si el reporte llega antes?</h3>
+        <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+          <div class="field" style="margin:0"><span class="lbl">Reporte en el minuto</span><input type="number" id="aRep" value="595" class="mono" style="width:110px"></div>
+          <button class="btn pri" id="bHip">Comparar</button>
+          <button class="chip" data-rep="595">595 · antes de sincronizar</button>
+          <button class="chip" data-rep="605">605 · servidor caído</button>
+        </div>
+        <div id="hip" style="margin-top:12px"></div>
+      </div>
+    </div>
+  </section>
+</main>
+</div>
+
+<script>
+/* La interfaz solo consulta al gemelo (/api) y muestra. Ninguna regla vive aquí. */
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const nice = s => esc(String(s ?? '').replaceAll('_', ' '));
+const hhmm = m => `${String(Math.floor(m % 1440 / 60)).padStart(2,'0')}:${String(m % 60).padStart(2,'0')}`;
+async function api(ruta, p = {}) {
+  const q = new URLSearchParams(Object.entries(p).filter(([, v]) => v !== '' && v != null));
+  const r = await fetch('/api/' + ruta + (q.toString() ? '?' + q : ''));
+  const j = await r.json(); if (!r.ok) throw new Error(j.message || r.status); return j;
+}
+const ico = (id, st = '') => `<svg class="i" style="${st}"><use href="#i-${id}"/></svg>`;
+const V3 = { si: ['b-ok', 'SÍ · PASÓ'], no: ['b-bad', 'NO · FALLÓ'], no_se_sabe: ['b-unk', 'NO SE SABE'] };
+const DEC = { abrir: ['v-abrir', 'ok', 'ABRIR'], negar: ['v-negar', 'no', 'NEGAR ACCESO'],
+              abrir_y_alertar: ['v-alerta', 'bell', 'ABRIR Y ALERTAR'], negar_y_alertar: ['v-negar', 'no', 'NEGAR Y ALERTAR'] };
+const COND = { energia: 'Energía', credencial_en_puerta: 'Credencial según la puerta', derecho: 'Derecho (rol, turno, excepción)',
+               antipassback: 'Anti-passback', credencial: 'Credencial', salida_de_emergencia: 'Salida de emergencia' };
+const ZONAS = [['calle', 'Exterior'], ['planta', 'Producción'], ['almacen', 'Almacén'], ['oficinas', 'Administración']];
+
+let T = 720, vista = 'plano', cat = null, lector = 'entrada', modo = 'tiempo_real', filtro = '';
+
+/* ---------- navegación y tiempo ---------- */
+function ir(v) {
+  vista = v;
+  $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.v === v));
+  $$('.view').forEach(s => s.classList.toggle('on', s.id === 'v-' + v));
+  refrescar();
+}
+function setT(v) {
+  T = Number(v); $('#t').value = Math.min(T, 900); $('#tn').value = T;
+  $('#clock').textContent = `min ${T} · D${Math.floor(T / 1440) + 1} · ${hhmm(T)}`;
+  $('#fT').value = T;
+  $$('#escenarios .chip').forEach(c => c.classList.toggle('on', Number(c.dataset.t) === T));
+  refrescar();
+}
+let pend;
+function refrescar() { clearTimeout(pend); pend = setTimeout(async () => {
+  try {
+    await pintarEstado();
+    if (vista === 'alertas') await pintarAlertas();
+    if (vista === 'emergencia') await pintarEmergencia();
+    if (vista === 'tarjeta') await pintarTarjeta();
+  } catch (e) { console.error(e); }
+}, 60); }
+
+/* ---------- 1. plano + estado global ---------- */
+async function pintarEstado() {
+  const e = await api('estado', { t: T });
+  $('#sfSrv').className = 'badge ' + (e.servidor_disponible ? 'b-ok' : 'b-bad pulse');
+  $('#sfSrv').textContent = e.servidor_disponible ? 'EN LÍNEA' : 'INCOMUNICADO';
+  $('#sfFire').className = 'badge ' + (e.alarma ? 'b-bad pulse' : 'b-ok');
+  $('#sfFire').textContent = e.alarma ? 'SONANDO' : 'APAGADA';
+  $('#navCrit').textContent = e.criticas + ' CRÍT.';
+  $('#navFire').className = 'badge ' + (e.alarma ? 'b-bad pulse' : 'b-mut');
+  if (vista !== 'plano') return;
+
+  const dentro = e.personas.filter(p => p.zona !== 'calle' && p.zona !== 'no_se_sabe');
+  const desact = e.puertas.filter(p => p.desactualizada_para.length);
+  $('#kpis').innerHTML = `
+    <div class="kpi">${ico('people', 'color:var(--ok)')}<div><div class="lbl">Dentro de la planta</div><div class="v">${String(dentro.length).padStart(2, '0')}</div></div></div>
+    <div class="kpi ${e.servidor_disponible ? '' : 'bad'}">${ico('server', 'color:var(--primary)')}<div><div class="lbl">Servidor central</div><div class="v" style="font-size:15px">${e.servidor_disponible ? 'EN LÍNEA' : 'INCOMUNICADO'}</div></div></div>
+    <div class="kpi ${e.alarma ? 'bad' : ''}">${ico('fire', 'color:var(--bad)')}<div><div class="lbl">Alarma de incendio</div><div class="v" style="font-size:15px">${e.alarma ? 'SONANDO' : 'APAGADA'}</div></div></div>
+    <div class="kpi ${desact.length ? 'bad' : ''}">${ico('warn', 'color:var(--warn)')}<div><div class="lbl">Puertas desactualizadas</div><div class="v">${String(desact.length).padStart(2, '0')}</div></div></div>`;
+
+  $('#zonas').innerHTML = ZONAS.map(([z, tag], i) => {
+    const gente = e.personas.filter(p => p.zona === z);
+    const puertas = e.puertas.filter(p => p.a === z);
+    const hayAlerta = gente.some(p => !p.activa) || puertas.some(p => p.desactualizada_para.length);
+    return `<div class="zona ${hayAlerta ? 'alerta' : ''}">
+      <div class="zhead"><div><span class="n">ZONA 0${i + 1}</span><b>${nice(z).toUpperCase()}</b></div>
+        <span class="badge ${hayAlerta ? 'b-bad' : 'b-pri'}">${hayAlerta ? 'ALERTA' : tag}</span></div>
+      <div class="lbl">${z === 'calle' ? 'Fuera de la planta' : 'Personal en la zona'} · ${gente.length}</div>
+      ${gente.map(p => `<div class="per ${p.activa ? '' : 'rev'}"><div><b>${p.activa ? esc(p.persona) : 'Portador no autorizado'}</b>
+          <small>${esc(p.tarjeta)} · ${nice(p.rol)}${p.activa ? '' : ' · de ' + esc(p.persona)}</small></div>
+          <span class="badge ${p.activa ? 'b-ok' : 'b-bad'}">${p.activa ? 'ACTIVA' : nice(p.estado_servidor)}</span></div>`).join('')
+        || '<p class="empty">Nadie</p>'}
+      ${puertas.map(puertaCard).join('')}
+    </div>`;
+  }).join('') + (e.personas.some(p => p.zona === 'no_se_sabe')
+     ? `<div class="zona"><div class="zhead"><b>¿?</b><span class="badge b-unk">NO SE SABE</span></div>
+        ${e.personas.filter(p => p.zona === 'no_se_sabe').map(p => `<div class="per"><b>${esc(p.persona)}</b><span class="badge b-unk">UBICACIÓN INCIERTA</span></div>`).join('')}</div>` : '');
+}
+function puertaCard(p) {
+  const c = { abierta: 'b-warn', cerrada: 'b-ok', no_se_sabe: 'b-unk' }[p.contacto];
+  return `<div class="door">
+    <div class="top"><b>${ico('door', 'width:14px;height:14px;vertical-align:-2px')} ${nice(p.puerta)}</b>
+      <span class="badge ${c}">${p.contacto === 'no_se_sabe' ? 'NO SE SABE' : nice(p.contacto)}</span></div>
+    <div class="kv">
+      <span>ENERGÍA</span><span style="color:${p.energia === 'si' ? 'var(--ok)' : p.energia === 'no' ? 'var(--bad)' : 'var(--unk)'}">${p.energia === 'si' ? 'Sí' : p.energia === 'no' ? 'No' : 'No se sabe'}</span>
+      <span>CONTACTO</span><span>${esc(p.contacto_texto)}</span>
+      <span>MODO</span><span>${p.modo === 'seguro' ? 'Fail-secure' : 'Fail-safe'}${p.tipo === 'salida_emergencia' ? ' · salida de emergencia' : ''}</span>
+      <span>LECTORES</span><span>${p.lectores.map(nice).join(', ')}</span>
+      <span>SINC.</span><span>min ${esc(p.sincronizada)}</span>
+      <span>EVACUABLE</span><span style="color:${p.transitable === 'si' ? 'var(--ok)' : 'var(--bad)'}">${esc(p.transitable_texto)}</span>
+    </div>
+    ${p.desactualizada_para.length ? `<div class="warn">⚠ AÚN ACEPTA ${p.desactualizada_para.map(esc).join(', ')} (REVOCADA)</div>` : ''}
+  </div>`;
+}
+
+/* ---------- 2. intento ---------- */
+function llenarLector() {
+  const p = cat.puertas.find(p => p.puerta === $('#fPuerta').value);
+  if (!p.lectores.includes(lector)) lector = p.lectores[0];
+  $('#fLector').innerHTML = p.lectores.map(l => `<button data-l="${esc(l)}" class="${l === lector ? 'on' : ''}">${nice(l)}</button>`).join('');
+}
+const intento = () => ({ tarjeta: $('#fTarjeta').value, puerta: $('#fPuerta').value, lector, t: $('#fT').value, modo });
+async function decidir() {
+  try {
+    const d = await api('decide', intento());
+    const [cls, icon, txt] = DEC[d.decision] || ['', 'bell', d.decision];
+    $('#verdict').className = 'verdict ' + cls;
+    $('#verdict').innerHTML = `<div><span class="badge b-mut">${modo === 'tiempo_real' ? 'CON LO QUE SE SABÍA EN ESE INSTANTE' : 'CON TODO LO RECIBIDO HASTA AHORA'}</span></div>
+      <div class="ico">${ico(icon)}</div>
+      <div class="lbl" style="color:inherit">Veredicto del gemelo</div>
+      <div class="big">${txt}</div>
+      <div class="who">${esc(d.tarjeta)} · <b style="text-transform:capitalize">${esc(d.persona)}</b> (${nice(d.rol)}, turno ${nice(d.turno)})<br>
+        ${nice(d.puerta)} · lector de ${nice(d.lector)} · min ${d.minuto} (${hhmm(d.minuto)})</div>
+      ${d.notas.map(n => `<div class="note">${esc(n)}</div>`).join('')}`;
+    $('#conds').innerHTML = d.condiciones.map((c, i) => `
+      <div class="cond ${esc(c.valor)}"><span class="num">#0${i + 1}</span>
+        <div style="flex:1"><b>${COND[c.condicion] || nice(c.condicion)}</b><ul>${c.detalle.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>
+        <span class="badge ${V3[c.valor][0]} st">${V3[c.valor][1]}</span></div>`).join('');
+    $('#clashes').innerHTML = d.choques.length ? d.choques.map(clashCard).join('')
+      : '<p class="empty">Ninguna regla chocó en esta decisión.</p>';
+    $('#falta').innerHTML = '<p class="empty">Presiona “Buscar cambios” para ver qué voltearía la decisión.</p>';
+  } catch (e) { $('#verdict').innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+}
+const clashCard = c => `<div class="clash"><div class="vs"><span>${esc(c.a)}</span><i>VS</i><span>${esc(c.b)}</span></div>
+  <div class="res">Gana: <b style="color:var(--warn)">${esc(c.gana)}</b> · Se le falla a: <b>${esc(c.falla)}</b></div></div>`;
+async function falta() {
+  try {
+    const r = await api('que_falta', intento());
+    $('#falta').innerHTML = r.ya_abre ? `<p>Ya abre (${nice(r.ya_abre)}); no hace falta cambiar nada.</p>`
+      : r.cambios.length ? r.cambios.map(c => `<div class="cond si"><div style="flex:1">${esc(c.cambio)}</div><span class="badge b-ok st">→ ${nice(c.decision)}</span></div>`).join('')
+        + '<p class="lbl" style="margin-top:6px">Cada cambio se verificó volviendo a llamar a decide/3.</p>'
+      : '<p class="empty">Ningún cambio de un solo hecho voltea esta decisión.</p>';
+  } catch (e) { $('#falta').innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+}
+
+/* ---------- 3. alertas ---------- */
+const SEV = { critica: ['b-bad', 'CRÍTICA'], advertencia: ['b-warn', 'ADVERTENCIA'], registro: ['b-mut', 'REGISTRO'], indeterminado: ['b-unk', 'NO SE SABE'] };
+const ORD = { critica: 0, advertencia: 1, indeterminado: 2, registro: 3 };
+async function pintarAlertas() {
+  const a = await api('alertas', { t: T });
+  const n = s => a.alertas.filter(x => x.severidad === s).length;
+  $('#alSum').innerHTML = Object.entries(SEV).map(([k, [c, l]]) =>
+    `<div class="kpi"><span class="badge ${c}">${l}</span><div class="v">${String(n(k)).padStart(2, '0')}</div></div>`).join('');
+  const L = a.alertas.filter(x => !filtro || x.severidad === filtro)
+    .sort((x, y) => ORD[x.severidad] - ORD[y.severidad] || (x.minuto ?? 0) - (y.minuto ?? 0));
+  $('#feed').innerHTML = L.length ? L.map(x => `<div class="al ${x.severidad}"><div class="bar"></div><div class="body">
+      <div class="hd"><span class="badge ${SEV[x.severidad][0]}">${SEV[x.severidad][1]}</span>
+        ${x.minuto != null ? `<span class="badge b-mut">MIN ${x.minuto} · ${hhmm(x.minuto)}</span>` : ''}
+        <span class="lbl">${esc(x.entidad)}</span>
+        ${x.aviso ? `<span class="badge b-pri" style="margin-left:auto">${ico('bell', 'width:12px;height:12px')} ${esc(x.aviso)}</span>` : ''}</div>
+      <b>${esc(x.situacion)}</b>
+      <div class="ev">${x.evidencia.map(v => `<span>${esc(v)}</span>`).join('')}</div></div></div>`).join('')
+    : '<p class="empty">Sin alertas de este tipo en este minuto.</p>';
+}
+
+/* ---------- 4. emergencia ---------- */
+async function pintarEmergencia() {
+  const e = await api('emergencia', { t: T });
+  if (e.alarma !== 'si') {
+    $('#emerg').innerHTML = `<div class="card" style="text-align:center;padding:40px">
+      <div style="color:var(--ok)">${ico('ok', 'width:44px;height:44px')}</div>
+      <h3 style="justify-content:center;margin-top:10px">Sin alarma de incendio en el min ${T}</h3>
+      <p class="sub">El escenario de incendio con corte de energía ocurre a las 10:45.</p>
+      <button class="btn red" onclick="setT(645)">Ir a 10:45 (min 645)</button></div>`; return;
+  }
+  const sale = e.personas.filter(p => !p.sin_salida).length, sin = e.personas.length - sale;
+  $('#emerg').innerHTML = `
+    <div class="banner"><div class="ico">${ico('fire', 'width:30px;height:30px')}</div>
+      <div><span class="badge b-bad pulse">NIVEL 1 · CRÍTICO</span>
+      <b>ALARMA DE INCENDIO ACTIVA${e.energia === 'no' ? ' · PLANTA SIN ENERGÍA' : ''}</b>
+      <span style="color:#ffdad6">NOM-002-STPS-2010: las salidas de emergencia abren siempre.</span></div></div>
+    <div class="kpis">
+      <div class="kpi">${ico('route', 'color:var(--ok)')}<div><div class="lbl">Con ruta de salida</div><div class="v">${String(sale).padStart(2, '0')}</div></div></div>
+      <div class="kpi ${sin ? 'bad' : ''}">${ico('warn', 'color:var(--bad)')}<div><div class="lbl">Sin salida</div><div class="v">${String(sin).padStart(2, '0')}</div></div></div>
+      <div class="kpi">${ico('door', 'color:var(--primary)')}<div><div class="lbl">Puertas evacuables</div><div class="v">${String(e.puertas.filter(p => p.transitable === 'si').length).padStart(2, '0')} / ${String(e.puertas.length).padStart(2, '0')}</div></div></div>
+    </div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(360px,1fr))">
+      <div class="card"><h3>${ico('people')}Evacuación por persona</h3>
+        <table><tr><th>Quién</th><th>Zona</th><th>Salida</th></tr>
+        ${e.personas.map(p => `<tr><td class="${p.tarjeta_activa ? 'n' : ''}">${esc(p.quien)}${p.tarjeta_activa ? '' : ' <span class="badge b-bad">REVOCADA</span>'}</td><td class="mono">${nice(p.zona)}</td>
+          <td>${p.sin_salida ? '<span class="badge b-bad">SIN SALIDA</span>' : `<span class="route">${p.ruta.map(esc).join(' · ')}</span>`}</td></tr>`).join('')}</table></div>
+      <div class="card"><h3>${ico('door')}Puertas sin energía</h3>
+        <div class="doors">${e.puertas.map(p => `<div class="dcell ${esc(p.transitable)}"><b>${nice(p.puerta)}</b><small>${esc(p.razon)}</small></div>`).join('')}</div></div>
+      <div class="card"><h3>${ico('scale')}Arbitraje: reglas en choque</h3>${e.choques.map(clashCard).join('')}</div>
+      <div class="card"><h3>${ico('bell')}Avisos a vigilancia</h3><ul class="avisos">${e.alertas.map(a => `<li>${esc(a)}</li>`).join('')}</ul></div>
+    </div>`;
+}
+
+/* ---------- 5. tarjeta ---------- */
+async function pintarTarjeta(conHip = false) {
+  const r = await api('tarjeta', { tarjeta: $('#aTarjeta').value, t: T, reporte: conHip ? $('#aRep').value : '' });
+  const est = { activa: 'b-ok', reportada: 'b-warn', revocada: 'b-bad' }[r.servidor] || 'b-unk';
+  $('#owner').innerHTML = `<div class="owner"><div class="avatar">${esc(r.persona[0])}</div>
+      <div><b style="font-size:17px;text-transform:capitalize">${esc(r.persona)}</b><div class="mono" style="color:var(--mut);font-size:12px">${esc(r.tarjeta)} · ${nice(r.rol)} · turno ${nice(r.turno)}</div></div>
+      <span class="badge ${est}" style="margin-left:auto">${nice(r.servidor)}</span></div>
+    <div class="lbl" style="margin-top:14px">Historial en el servidor</div>
+    <div class="hist">${r.historial.map(h => `<div class="${esc(h.estado)}">${nice(h.estado)}<br><span style="color:var(--mut)">min ${h.desde}</span></div>`).join('')}</div>`;
+  $('#expuestas').innerHTML = r.puertas_expuestas.length
+    ? `<div class="ev">${r.puertas_expuestas.map(p => `<span class="badge b-bad">${nice(p)}</span>`).join('')}</div><p class="sub" style="margin:8px 0 0">Su última sincronización fue antes de la revocación.</p>`
+    : `<span class="badge b-ok">NINGUNA EN EL MIN ${T}</span>`;
+  $('#incomp').innerHTML = r.usos_incompatibles.length ? r.usos_incompatibles.map(u => `<div class="cond no"><div style="flex:1">
+      <b class="mono" style="font-size:12.5px">${nice(u.a.puerta)} · min ${u.a.minuto} ↔ ${nice(u.b.puerta)} · min ${u.b.minuto}</b>
+      <div class="ev">${u.evidencia.map(v => `<span>${esc(v)}</span>`).join('')}</div></div></div>`).join('')
+    : '<p class="empty">Todos los usos son compatibles con una sola persona.</p>';
+  $('#usos').innerHTML = r.usos.length ? r.usos.map(u => `<div class="use ${esc(u.clase)}">
+      <span class="badge b-mut">MIN ${u.minuto} · ${hhmm(u.minuto)}</span> <b>${nice(u.puerta)}</b><div style="color:var(--ink2);font-size:12.5px;margin-top:3px">${esc(u.texto)}</div></div>`).join('')
+    : '<p class="empty">Sin usos.</p>';
+  if (conHip) $('#hip').innerHTML = r.hipotesis.length ? `<table class="cmp"><tr><th>Uso</th><th>Real</th><th>Con la hipótesis</th></tr>
+      ${r.hipotesis.map(h => `<tr><td class="mono">min ${h.minuto} · ${nice(h.puerta)}</td><td>${nice(h.real)}</td>
+        <td class="${h.real !== h.hipotesis ? 'diff' : ''}">${nice(h.hipotesis)}${h.real !== h.hipotesis ? ' ◂ cambia' : ''}</td></tr>`).join('')}</table>`
+    : '<p class="empty">Esta tarjeta no tiene usos que comparar.</p>';
+}
+
+/* ---------- arranque ---------- */
+async function init() {
+  cat = await api('catalogo');
+  const opts = cat.tarjetas.map(t => `<option value="${esc(t.tarjeta)}">${esc(t.tarjeta)} — ${esc(t.persona)} (${nice(t.rol)})</option>`).join('');
+  $('#fTarjeta').innerHTML = opts; $('#aTarjeta').innerHTML = opts;
+  $('#fTarjeta').value = 't_ivan'; $('#aTarjeta').value = 't_marta';
+  $('#fPuerta').innerHTML = cat.puertas.map(p => `<option value="${esc(p.puerta)}">${nice(p.puerta)}</option>`).join('');
+  $('#fPuerta').value = 'linea_produccion'; llenarLector();
+  $('#fPuerta').onchange = () => { llenarLector(); decidir(); };
+  $('#fTarjeta').onchange = decidir; $('#fT').onchange = decidir;
+  $('#fLector').onclick = e => { if (e.target.dataset.l) { lector = e.target.dataset.l; llenarLector(); decidir(); } };
+  $('#fModo').onclick = e => { if (e.target.dataset.m) { modo = e.target.dataset.m; $$('#fModo button').forEach(b => b.classList.toggle('on', b.dataset.m === modo)); decidir(); } };
+  $('#bDecide').onclick = decidir; $('#bFalta').onclick = falta;
+  $('#alFiltro').onclick = e => { if (e.target.dataset.f !== undefined) { filtro = e.target.dataset.f; $$('#alFiltro .chip').forEach(c => c.classList.toggle('on', c.dataset.f === filtro)); pintarAlertas(); } };
+  $('#aTarjeta').onchange = () => { $('#hip').innerHTML = ''; pintarTarjeta(); };
+  $('#bHip').onclick = () => pintarTarjeta(true);
+  $$('[data-rep]').forEach(b => b.onclick = () => { $('#aRep').value = b.dataset.rep; pintarTarjeta(true); });
+  $$('#nav a').forEach(a => a.onclick = () => ir(a.dataset.v));
+  $('#t').oninput = e => setT(e.target.value); $('#tn').onchange = e => setT(e.target.value);
+  $$('#escenarios .chip').forEach(c => c.onclick = () => {
+    if (c.dataset.pre === 'rosa') { $('#fTarjeta').value = 't_rosa'; $('#fPuerta').value = 'acceso_principal'; lector = 'entrada'; llenarLector(); }
+    if (c.dataset.pre === 'ivan') { $('#fTarjeta').value = 't_ivan'; $('#fPuerta').value = 'linea_produccion'; lector = 'entrada'; llenarLector(); }
+    setT(c.dataset.t); ir(c.dataset.go);
+    if (c.dataset.go === 'intento') decidir();
+  });
+  setT(cat.ahora); decidir();
+}
+init();
+</script>
+</body>
+</html>
