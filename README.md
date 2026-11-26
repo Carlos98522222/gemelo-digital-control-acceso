@@ -32,7 +32,8 @@ Modelo lógico en **SWI-Prolog** del sistema de control de acceso de una planta 
 14. [Lo que se logró](#14-lo-que-se-logró)
 15. [Tecnologías](#15-tecnologías)
 16. [Incidencias durante el desarrollo](#16-incidencias-durante-el-desarrollo)
-17. [Referencias](#17-referencias)
+17. [Conclusión](#17-conclusión)
+18. [Referencias](#18-referencias)
 
 ---
 
@@ -399,7 +400,17 @@ Erlang no es bueno para deducir y justificar, y Prolog no es bueno para atender 
 | Stitch inventó datos que no existen en el modelo | La interfaz final solo muestra lo que responde `/api` |
 | La biblioteca de archivos estáticos no servía `web/` con la ruta por defecto | Se escribió un manejador propio (`servir_web/1`) que además impide salir de `web/` |
 
-## 17. Referencias
+## 17. Conclusión
+
+Este proyecto mostró la diferencia entre **guardar datos** y **conocer**. En la fase de Erlang, el sistema registraba qué pasó en cada puerta. En esta fase, el gemelo digital en Prolog deduce lo que nadie escribió de forma explícita: quién tiene derecho a entrar y por qué, quién está dentro aunque un lector se haya atrasado, qué puertas siguen aceptando una tarjeta robada, quién se queda sin salida en un incendio y cuándo una puerta fue forzada.
+
+Lo más valioso fue la **lógica de tres valores**. Un sistema tradicional habría contestado «sí» o «no» aun sin estar seguro, y eso deja a una trabajadora atrapada afuera o despierta al vigilante por un sensor descompuesto. El gemelo, en cambio, distingue «no ha salido» de «no me enteré de que salió», declara cuándo no sabe algo y aplica una política explícita. También hace visibles los **choques entre reglas válidas**, como la salida de emergencia contra la tarjeta revocada, y dice cuál gana y a quién se le falla.
+
+Con un solo conjunto de hechos y reglas se resolvieron las cinco situaciones y las cinco preguntas: decidir, explicar, listar todas las respuestas, preguntar al revés y plantear hipótesis. Ninguna necesitó un programa aparte. Las 40 pruebas lo respaldan, y la interfaz, diseñada en Google Stitch, solo muestra lo que el gemelo deduce. Además, el modelo encontró un problema real que nadie le pidió buscar: con el acceso principal en modo fail-secure, un corte de energía deja encerrada a la gente de la planta.
+
+La conclusión principal es que **cada lenguaje tiene su lugar**. Erlang hace que las puertas funcionen en tiempo real y resistan fallas; Prolog explica si debían abrir y por qué. Juntos forman un sistema que no solo registra lo que pasa, sino que lo entiende.
+
+## 18. Referencias
 
 - [SWI-Prolog — Manual de referencia](https://www.swi-prolog.org/pldoc/doc_for?object=manual)
 - [plunit — Pruebas unitarias en SWI-Prolog](https://www.swi-prolog.org/pldoc/doc_for?object=section(%27packages/plunit.html%27))
